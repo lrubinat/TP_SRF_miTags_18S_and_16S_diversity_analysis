@@ -21,6 +21,12 @@ merge_tables_16S	[<-	$	$<-	as.character	as.numeric	dim	merge	order	rownames	rown
 select_phototrophs_16S2	!=	$	&	dim	TP_16S_miTags_ss13676_tax_sorted	which
 aggregate_16S_protists	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	TP_16S_miTags_protists	x
 aggregate_16S_bacteria	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	TP_16S_miTags_bacteria	x
-count_samples_per_group_16S_protists	==	>	$	colSums	dim	length	TP_16S_miTags_protists	which
+count_samples_per_group_16S_protists	==	>	$	colSums	length	TP_16S_miTags_protists	which
 count_samples_per_group_16S_bacteria	==	>	$	colSums	length	TP_16S_miTags_bacteria	which
-create_table_merging_#OTUs_#reads_#samples_protists	$	c	colnames<-	merge	order	row.names<-	T	TP_16S_miTags_class_summary_otus_per_class_protists_order	TP_16S_miTags_class_summary_reads_per_class_protists_order
+create_table_merging_#OTUs_#reads_#samples_protists	[<-	$	$<-	c	colnames<-	merge	order	row.names<-	T	TP_16S_miTags_class_summary_otus_per_class_protists_order	TP_16S_miTags_class_summary_reads_per_class_protists_order
+create_table_merging_#OTUs_#reads_#samples_bacteria	[<-	$	$<-	c	colnames<-	merge	order	row.names<-	T	TP_16S_miTags_class_summary_otus_per_class_bacteria_order	TP_16S_miTags_class_summary_reads_per_class_bacteria_order
+stations_vs_OTUs_protists	aes	c	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	TP_16S_miTags_protists_OTUs_reads_samples_without_op
+OTUs_vs_reads_protists	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	TP_16S_miTags_protists_OTUs_reads_samples_without_op
+merge_protists_and_bacteria_tb	rbind	TP_16S_miTags_bacteria_OTUs_reads_samples_without_hb	TP_16S_miTags_protists_OTUs_reads_samples_without_op
+stations_vs_OTUs_protists_plus_bacteria	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	tb16S_protists_plus_bacteria_OTUs_reads_samples
+OTUs_vs_reads_protists_plus_bacteria	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	tb16S_protists_plus_bacteria_OTUs_reads_samples
