@@ -1,0 +1,26 @@
+load_data_18S	<	>=	[<-	colSums	dim	is.na	read.table	row.names<-	setwd	which
+species_richness_rarefaction1_18S	library	rrarefy	t	TP_18S_miTags_tax_occur_min654
+species_richness_rarefaction2_18S	dim	TP_18S_miTags_tax_occur_ss654
+species_richness_rarefaction3_18S	rowSums	TP_18S_miTags_tax_occur_ss654
+species_richness_rarefaction4_18S	==	colSums	length	TP_18S_miTags_tax_occur_ss654	which
+species_richness_rarefaction5_18S	==	colSums	dim	TP_18S_miTags_tax_occur_ss654	which
+merge_tables_18S	[<-	$	$<-	as.character	as.numeric	dim	merge	order	rownames	rownames<-	sapply	strsplit	t	TP_18S_class	TP_18S_miTags_tax_occur_ss654_no_cero
+select_phototrophs_18S	!=	$	dim	TP_18S_miTags_tax_sorted	which
+count_samples_per_group_18S	==	>	$	colSums	dim	length	TP_18S_miTags_phototrophs	which
+aggregate_18S	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	TP_18S_miTags_phototrophs	x
+create_table_merging_#OTUs_#reads_#samples_18S	[<-	$	$<-	c	colnames<-	merge	order	row.names<-	T	TP_18S_miTags_class_summary_otus_per_class_order	TP_18S_miTags_class_summary_reads_per_class_order
+stations_vs_OTUs_18S	aes	c	geom_point	geom_text	ggplot	labs	library	OTUs_per_class	rownames	samples_per_class	scale_x_continuous	TP_18S_miTags_OTUs_reads_samples
+OTUs_vs_reads_18S	aes	c	coord_trans	geom_point	geom_text	ggplot	labs	OTUs_per_class	reads_per_class	rownames	scale_x_continuous	TP_18S_miTags_OTUs_reads_samples
+load_data_16S	<	[<-	c	colSums	dim	is.na	read.table	row.names<-	st030	st101	st120	subset	TARA_93_SUR_0d2.3	TARA_94_SUR_0d2.3	which
+species_richness_rarefaction1_16S	rrarefy	t	TP_16S_miTags_tax_occur_min13676
+species_richness_rarefaction2_16S	dim	TP_16S_miTags_tax_occur_ss13676
+species_richness_rarefaction3_16S	rowSums	TP_16S_miTags_tax_occur_ss13676
+species_richness_rarefaction4_16S	==	colSums	length	TP_16S_miTags_tax_occur_ss13676	which
+species_richness_rarefaction5_16S	==	colSums	dim	TP_16S_miTags_tax_occur_ss13676	which
+merge_tables_16S	[<-	$	$<-	as.character	as.numeric	dim	merge	order	rownames	rownames<-	sapply	strsplit	t	TP_16S_miTags_class	TP_16S_miTags_tax_occur_ss13676_no_cero
+select_phototrophs_16S2	!=	$	&	dim	TP_16S_miTags_ss13676_tax_sorted	which
+aggregate_16S_protists	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	TP_16S_miTags_protists	x
+aggregate_16S_bacteria	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	TP_16S_miTags_bacteria	x
+count_samples_per_group_16S_protists	==	>	$	colSums	dim	length	TP_16S_miTags_protists	which
+count_samples_per_group_16S_bacteria	==	>	$	colSums	length	TP_16S_miTags_bacteria	which
+create_table_merging_#OTUs_#reads_#samples_protists	$	c	colnames<-	merge	order	row.names<-	T	TP_16S_miTags_class_summary_otus_per_class_protists_order	TP_16S_miTags_class_summary_reads_per_class_protists_order

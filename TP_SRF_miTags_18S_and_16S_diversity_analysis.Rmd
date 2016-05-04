@@ -1,0 +1,648 @@
+---
+title: "TP_SRF_miTags_18S_and_16S_diversity_analysis"
+author: "lrubinat"
+date: "04/05/2016"
+output:
+  html_document:
+    theme: united
+    toc: yes
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+---
+
+<!--- INITIALIZATION
+```{r, echo=FALSE}
+#error hook to kill knitr in case of errors
+library(knitr)
+knit_hooks$set(error = function(x, options) stop(x))
+opts_chunk$set(cache=TRUE, autodep=TRUE)
+```
+--->
+
+# 1) 18S amplicons
+
+## 1.1) Data overview
+
+Let's read the dataset and remove the samples containing less than 654 reads:
+
+``` {r load_data_18S, echo=FALSE, message=FALSE}
+setwd("/home/laura/Documents/TFM/genwork/data_analysis/TP_SRF_miTags_18S_and_16S_diversity_analysis//")
+
+#read data 
+TP_18S_miTags_tax <- read.table(file="/home/laura/Documents/TFM/home/data/TARASPINA/SRF_miTags/TP_SRF/otu_tb99_TP_SRF_18S.txt", head=TRUE, fill=TRUE)
+
+#table dimensions and format before setting column names
+dim(TP_18S_miTags_tax) # 3644   58
+TP_18S_miTags_tax[1:5,1:5]
+
+#row names = OTU name (option A)
+row.names(TP_18S_miTags_tax)<-TP_18S_miTags_tax[,1]
+
+#row names = row number (option B)
+#rownames(otu_TP_18S) <- 1:nrow(otu_TP_18S)
+
+TP_18S_miTags_tax<-TP_18S_miTags_tax[,-1]
+TP_18S_miTags_tax[is.na(TP_18S_miTags_tax)]<-"NA"
+
+dim(TP_18S_miTags_tax)
+TP_18S_miTags_tax[1:5,1:5]
+
+#table with taxonomi classification alone
+TP_18S_class <- TP_18S_miTags_tax[,56:57]
+dim(TP_18S_class)
+TP_18S_class[1:5,1:2]
+
+#table with occurence data alone
+TP_18S_miTags_tax_occur <- TP_18S_miTags_tax[,1:55]
+dim(TP_18S_miTags_tax_occur) #1641   10
+TP_18S_miTags_tax_occur[1:5,1:5]
+
+amplicons_per_sample_TP_18S<-colSums(TP_18S_miTags_tax_occur)
+amplicons_per_sample_TP_18S[which(colSums(TP_18S_miTags_tax_occur)<654)]
+# samples st030, st101, st120, TARA_93_SUR_0d2.3 and TARA_94_SUR_0d2.3 have less than 654 reads.
+
+#remove samples with less than 654 reads
+TP_18S_miTags_tax_occur_min654 <- TP_18S_miTags_tax_occur[,colSums(TP_18S_miTags_tax_occur) >= 654]
+dim(TP_18S_miTags_tax_occur_min654)
+```
+
+
+## 1.2) Normalization
+
+Let's normalize the original dataset by randomly subsampling 654 reads in each station:
+
+``` {r species_richness_rarefaction1_18S, echo=TRUE}
+library(vegan)
+TP_18S_miTags_tax_occur_min654_t<-t(TP_18S_miTags_tax_occur_min654)
+TP_18S_miTags_tax_occur_ss654<-rrarefy(TP_18S_miTags_tax_occur_min654_t, 654)
+```
+
+The normalized table shows the following dimensions and format:
+
+```{r species_richness_rarefaction2_18S, echo=FALSE}
+dim(TP_18S_miTags_tax_occur_ss654)
+TP_18S_miTags_tax_occur_ss654[1:5,1:5]
+```
+
+Its content fits with the expected normalization values (654 reads per station):
+
+``` {r species_richness_rarefaction3_18S, echo=TRUE}
+rowSums(TP_18S_miTags_tax_occur_ss654)
+```
+
+Let's check out how many OTUs don't appear in the new table:
+
+```{r species_richness_rarefaction4_18S, echo=1:5}
+length(which(colSums(TP_18S_miTags_tax_occur_ss654)==0)) 
+```
+
+There are 1179 OTUs that don't show any occurrence in the normalized data. Let's remove them from the table and take a look at its final dimensions:
+
+```{r species_richness_rarefaction5_18S, echo=1:3}
+TP_18S_miTags_tax_occur_ss654_no_cero<-TP_18S_miTags_tax_occur_ss654[,-(which(colSums(TP_18S_miTags_tax_occur_ss654)==0))]
+dim(TP_18S_miTags_tax_occur_ss654_no_cero)
+
+#the final dimensions of the normalized table are 119 26907.
+#1212 + 429 = 1641
+```
+
+Datasets summary:
+dim(TP_18S_miTags_tax) --> 1641   12
+dim(TP_18S_miTags_tax_occur) --> 1641   10
+dim(TP_18S_miTags_tax_occur_ss654_no_cero) --> 9 1212
+
+
+## 1.3) Taxonomic composition analysis
+
+Let's add the taxonomic classification to the left OTUs by merging "TP_18S_miTags_tax_occur_ss654_no_cero" with "TP_18S_tax":
+
+```{r merge_tables_18S, echo=FALSE}
+TP_18S_miTags_tax_occur_ss654_no_cero_t<-t(TP_18S_miTags_tax_occur_ss654_no_cero)
+TP_18S_miTags_tax<-merge(TP_18S_miTags_tax_occur_ss654_no_cero_t,TP_18S_class, by="row.names")
+
+dim(TP_18S_miTags_tax)
+TP_18S_miTags_tax[1:5,1:5]
+
+#fix OTU_no as new row
+rownames(TP_18S_miTags_tax)=TP_18S_miTags_tax$Row.names
+
+#add OTU_no as rowname
+rownames.TP_18S_miTags_tax<-TP_18S_miTags_tax[,1]
+TP_18S_miTags_tax<-TP_18S_miTags_tax[,-1]
+#colnames(TP_18S_miTags_tax, do.NULL=F)
+
+dim(TP_18S_miTags_tax)
+TP_18S_miTags_tax[1:5, 1:5]
+
+#sort by OTU_no (split rowname, introduce no. into column "OTU_no" and sort)
+TP_18S_miTags_tax["OTU_no"] <- NA
+TP_18S_miTags_tax$OTU_no <- sapply(strsplit(rownames(TP_18S_miTags_tax),split= "\\_"),'[',2)
+TP_18S_miTags_tax$OTU_no <- as.numeric(as.character(TP_18S_miTags_tax$OTU_no))
+TP_18S_miTags_tax_sorted<-TP_18S_miTags_tax[order(TP_18S_miTags_tax$OTU_no, decreasing = FALSE), ]
+
+dim(TP_18S_miTags_tax_sorted)
+TP_18S_miTags_tax_sorted[1:5,1:5]
+```
+
+```{r select_phototrophs_18S, echo=FALSE} 
+TP_18S_miTags_phototrophs <- TP_18S_miTags_tax_sorted[which(TP_18S_miTags_tax_sorted$class != "heterotrophic_protist"),]
+
+dim(TP_18S_miTags_phototrophs)
+```
+
+```{r count_samples_per_group_18S, echo=FALSE}
+#create a table per group and count in how many samples they occur. 
+Dinophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Dinophyceae"),]
+Dinophyceae_tb[1:5,1:5]
+Dinophyceae_tb_occur <- Dinophyceae_tb[,1:50]
+Dinophyceae_tb_occur[1:5,1:5]
+dim(Dinophyceae_tb_occur)
+
+length(Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0])
+#Dinophyceae_tb_samples <- Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0]
+#length(Dinophyceae_tb_samples[which(colSums(Dinophyceae_tb_occur) != 0)])
+
+Prasinophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Prasinophyceae"),]
+Prasinophyceae_tb_occur <- Prasinophyceae_tb[,1:50]
+length(Prasinophyceae_tb_occur[,colSums(Prasinophyceae_tb_occur) > 0])
+
+Chrysophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Chrysophyceae"),]
+Chrysophyceae_tb_occur <- Chrysophyceae_tb[,1:50]
+length(Chrysophyceae_tb_occur[,colSums(Chrysophyceae_tb_occur) > 0])
+
+Pelagophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Pelagophyceae"),]
+Pelagophyceae_tb_occur <- Pelagophyceae_tb[,1:50]
+length(Pelagophyceae_tb_occur[,colSums(Pelagophyceae_tb_occur) > 0])
+
+Dictyochophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Dictyochophyceae"),]
+Dictyochophyceae_tb_occur <- Dictyochophyceae_tb[,1:50]
+length(Dictyochophyceae_tb_occur[,colSums(Dictyochophyceae_tb_occur) > 0])
+
+Cryptomonadales_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Cryptomonadales"),]
+Cryptomonadales_tb_occur <- Cryptomonadales_tb[,1:50]
+length(Cryptomonadales_tb_occur[,colSums(Cryptomonadales_tb_occur) > 0])
+
+Bacillariophyta_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Bacillariophyta"),]
+Bacillariophyta_tb_occur <- Bacillariophyta_tb[,1:50]
+length(Bacillariophyta_tb_occur[,colSums(Bacillariophyta_tb_occur) > 0])
+
+Chlorarachniophyta_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Chlorarachniophyta"),]
+Chlorarachniophyta_tb_occur <- Chlorarachniophyta_tb[,1:50]
+length(Chlorarachniophyta_tb_occur[,colSums(Chlorarachniophyta_tb_occur) > 0])
+
+Bolidophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Bolidophyceae"),]
+Bolidophyceae_tb_occur <- Bolidophyceae_tb[,1:50]
+length(Bolidophyceae_tb_occur[,colSums(Bolidophyceae_tb_occur) > 0])
+
+Pinguiochysidales_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Pinguiochysidales"),]
+Pinguiochysidales_tb_occur <- Pinguiochysidales_tb[,1:50]
+length(Pinguiochysidales_tb_occur[,colSums(Pinguiochysidales_tb_occur) > 0])
+
+Prymnesiophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Prymnesiophyceae"),]
+Prymnesiophyceae_tb_occur <- Prymnesiophyceae_tb[,1:50]
+length(Prymnesiophyceae_tb_occur[,colSums(Prymnesiophyceae_tb_occur) > 0])
+
+Mamiellophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Mamiellophyceae"),]
+Mamiellophyceae_tb_occur <- Mamiellophyceae_tb[,1:50]
+length(Mamiellophyceae_tb_occur[,colSums(Mamiellophyceae_tb_occur) > 0])
+
+Eustigmatales_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Eustigmatales"),]
+Eustigmatales_tb_occur <- Eustigmatales_tb[,1:50]
+length(Eustigmatales_tb_occur[,colSums(Eustigmatales_tb_occur) > 0])
+
+Chlorophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Chlorophyceae"),]
+Chlorophyceae_tb_occur <- Chlorophyceae_tb[,1:50]
+length(Chlorophyceae_tb_occur[,colSums(Chlorophyceae_tb_occur) > 0])
+
+Ulvophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Ulvophyceae"),]
+Ulvophyceae_tb_occur <- Ulvophyceae_tb[,1:50]
+length(Ulvophyceae_tb_occur[,colSums(Ulvophyceae_tb_occur) > 0])
+
+Raphydophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Raphydophyceae"),]
+Raphydophyceae_tb_occur <- Raphydophyceae_tb[,1:50]
+length(Raphydophyceae_tb_occur[,colSums(Raphydophyceae_tb_occur) > 0])
+
+Trebouxiophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Trebouxiophyceae"),]
+Trebouxiophyceae_tb_occur <- Trebouxiophyceae_tb[,1:50]
+length(Trebouxiophyceae_tb_occur[,colSums(Trebouxiophyceae_tb_occur) > 0])
+
+Phaeothamniophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Phaeothamniophyceae"),]
+Phaeothamniophyceae_tb_occur <- Phaeothamniophyceae_tb[,1:50]
+length(Phaeothamniophyceae_tb_occur[,colSums(Phaeothamniophyceae_tb_occur) > 0])
+
+Xanthophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Xanthophyceae"),]
+Xanthophyceae_tb_occur <- Xanthophyceae_tb[,1:50]
+length(Xanthophyceae_tb_occur[,colSums(Xanthophyceae_tb_occur) > 0])
+
+Chlorodendrophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Chlorodendrophyceae"),]
+Chlorodendrophyceae_tb_occur <- Chlorodendrophyceae_tb[,1:50]
+length(Chlorodendrophyceae_tb_occur[,colSums(Chlorodendrophyceae_tb_occur) > 0])
+
+Nephroselmis_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Nephroselmis"),]
+Nephroselmis_tb_occur <- Nephroselmis_tb[,1:50]
+length(Nephroselmis_tb_occur[,colSums(Nephroselmis_tb_occur) > 0])
+
+Rhodophyta_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Rhodophyta"),]
+Rhodophyta_tb_occur <- Rhodophyta_tb[,1:50]
+length(Rhodophyta_tb_occur[,colSums(Rhodophyta_tb_occur) > 0])
+
+Pavlovophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Pavlovophyceae"),]
+Pavlovophyceae_tb_occur <- Pavlovophyceae_tb[,1:50]
+length(Pavlovophyceae_tb_occur[,colSums(Pavlovophyceae_tb_occur) > 0])
+
+Rappemonad_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Rappemonad"),]
+Rappemonad_tb_occur <- Rappemonad_tb[,1:50]
+length(Rappemonad_tb_occur[,colSums(Rappemonad_tb_occur) > 0])
+
+Phaeophyceae_tb <- TP_18S_miTags_phototrophs[which(TP_18S_miTags_phototrophs$class == "Phaeophyceae"),]
+Phaeophyceae_tb_occur <- Phaeophyceae_tb[,1:50]
+length(Phaeophyceae_tb_occur[,colSums(Phaeophyceae_tb_occur) > 0])
+```
+
+```{r aggregate_18S, echo=FALSE}
+TP_18S_miTags_class_summary_reads_per_class<-aggregate(rowSums(TP_18S_miTags_phototrophs[1:50]), list(TP_18S_miTags_phototrophs$class), sum)
+# count the different groups
+
+TP_18S_miTags_class_summary_otus_per_class<-aggregate(rowSums(TP_18S_miTags_phototrophs[1:50]), list(TP_18S_miTags_phototrophs$class), length)
+
+## READS PER CLASS ##
+attach(TP_18S_miTags_class_summary_reads_per_class)
+TP_18S_miTags_class_summary_reads_per_class_order<-TP_18S_miTags_class_summary_reads_per_class[order(-x),]
+detach(TP_18S_miTags_class_summary_reads_per_class)
+TP_18S_miTags_class_summary_reads_per_class_order
+
+#fix column names
+row.names(TP_18S_miTags_class_summary_reads_per_class_order)<-TP_18S_miTags_class_summary_reads_per_class_order[,1]
+TP_18S_miTags_class_summary_reads_per_class_order<-TP_18S_miTags_class_summary_reads_per_class_order[c(-1)]
+colnames(TP_18S_miTags_class_summary_reads_per_class_order)<-c("reads_per_class")
+
+## OTUs PER CLASS ##
+attach(TP_18S_miTags_class_summary_otus_per_class)
+TP_18S_miTags_class_summary_otus_per_class_order<-TP_18S_miTags_class_summary_otus_per_class[order(-x),]
+detach(TP_18S_miTags_class_summary_otus_per_class)
+TP_18S_miTags_class_summary_otus_per_class_order
+
+row.names(TP_18S_miTags_class_summary_otus_per_class_order)<-TP_18S_miTags_class_summary_otus_per_class_order[,1]
+TP_18S_miTags_class_summary_otus_per_class_order<-TP_18S_miTags_class_summary_otus_per_class_order[c(-1)]
+colnames(TP_18S_miTags_class_summary_otus_per_class_order)<-c("OTUs_per_class")
+
+#class_summary_reads<-aggregate(sum~class, data=otutab_full_wTax, FUN="sum") 
+# sum reads different groups
+```
+
+
+
+```{r create_table_merging_#OTUs_#reads_#samples_18S, echo=FALSE}
+TP_18S_miTags_OTUs_reads_samples <- merge(TP_18S_miTags_class_summary_reads_per_class_order, TP_18S_miTags_class_summary_otus_per_class_order, by="row.names")
+
+row.names(TP_18S_miTags_OTUs_reads_samples)<-TP_18S_miTags_OTUs_reads_samples[,1]
+TP_18S_miTags_OTUs_reads_samples<-TP_18S_miTags_OTUs_reads_samples[,-1]
+colnames(TP_18S_miTags_OTUs_reads_samples)<-c("reads_per_class","OTUs_per_class")
+TP_18S_miTags_OTUs_reads_samples[,1:2]
+
+TP_18S_miTags_OTUs_reads_samples<-TP_18S_miTags_OTUs_reads_samples[order(TP_18S_miTags_OTUs_reads_samples$reads_per_class, TP_18S_miTags_OTUs_reads_samples$OTUs_per_class, decreasing = T), c(1,2)]
+
+#add no. of samples per class
+TP_18S_miTags_OTUs_reads_samples["samples_per_class"] <- NA
+TP_18S_miTags_OTUs_reads_samples$samples_per_class<-c(50,50,50,47,43,46,49,20,44,32,37,20,23,10,3,1,1,1)
+TP_18S_miTags_OTUs_reads_samples
+```
+
+```{r stations_vs_OTUs_18S, echo=FALSE}
+library(ggplot2)
+
+#p <- ggplot(TP_18S_miTags_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class))
+#p + geom_point()
+TP_18S_miTags_otus_vs_samples_plot <- ggplot(TP_18S_miTags_OTUs_reads_samples, aes(samples_per_class,OTUs_per_class, label = rownames(TP_18S_miTags_OTUs_reads_samples)))
+TP_18S_miTags_otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_y = 0.05, size = 3) + scale_x_continuous(limits = c(0, 70)) + labs(title="[tb1] #samples vs #OTUs", x="samples", y="OTUs")
+```
+
+```{r OTUs_vs_reads_18S, echo=FALSE}
+TP_18S_miTags_otus_vs_samples_plot <- ggplot(TP_18S_miTags_OTUs_reads_samples, aes(OTUs_per_class, reads_per_class, label = rownames(TP_18S_miTags_OTUs_reads_samples)))
+TP_18S_miTags_otus_vs_samples_plot + geom_point() + geom_text(check_overlap = TRUE,hjust = -0.05, nudge_x = 0.05, size = 3) + scale_x_continuous(limits = c(0, 370)) + labs(title="[tb3] #OTUs vs #reads", x="OTUs", y="reads") + coord_trans(y = "log10")
+```
+
+
+# 2) 16S amplicons
+
+## 2.1) Data overview
+
+Let's read the dataset and remove the samples containing less than 654 reads:
+
+``` {r load_data_16S, echo=FALSE, message=FALSE}
+
+#read data 
+TP_16S_miTags_tax <- read.table(file="/home/laura/Documents/TFM/home/data/TARASPINA/SRF_miTags/TP_SRF/otu_tb99_TP_SRF_16S.txt", head=TRUE, fill=TRUE)
+
+#table dimensions and format before setting column names
+dim(TP_16S_miTags_tax) # 8248   14
+TP_16S_miTags_tax[1:5,1:5]
+
+#row names = OTU name (option A)
+row.names(TP_16S_miTags_tax)<-TP_16S_miTags_tax[,1]
+
+#row names = row number (option B)
+#rownames(otu_TP_16S) <- 1:nrow(otu_TP_16S)
+
+TP_16S_miTags_tax<-TP_16S_miTags_tax[,-1]
+TP_16S_miTags_tax[is.na(TP_16S_miTags_tax)]<-"NA"
+
+dim(TP_16S_miTags_tax)
+TP_16S_miTags_tax[1:5,1:5]
+
+#table with taxonomi classification alone
+TP_16S_miTags_class <- TP_16S_miTags_tax[,56:58]
+dim(TP_16S_miTags_class)
+TP_16S_miTags_class[1:5,1:3]
+
+#table with occurence data alone
+TP_16S_miTags_tax_occur <- TP_16S_miTags_tax[,1:55]
+dim(TP_16S_miTags_tax_occur) #8248   10
+TP_16S_miTags_tax_occur[1:5,1:5]
+
+amplicons_per_sample_TP_16S<-colSums(TP_16S_miTags_tax_occur)
+amplicons_per_sample_TP_16S[which(colSums(TP_16S_miTags_tax_occur)<20000)]
+#only st101 and st120 have less than 20000 reads. We'll normalize at 13676 reads.
+
+#let's remove samples with omitted in 18S dataset (so that we can compare the relative abundance of 18S and 16S OTUs considering the same samples)
+TP_16S_miTags_tax_occur_min13676<-subset(TP_16S_miTags_tax_occur, select=-c(st030, st101, st120, TARA_93_SUR_0d2.3, TARA_94_SUR_0d2.3))
+dim(TP_16S_miTags_tax_occur_min13676) #8248    9
+TP_16S_miTags_tax_occur_min13676[1:5,1:5]
+```
+
+## 2.2) Normalization
+
+#Let's normalize the original dataset by randomly subsampling 13676 reads in each station:
+
+``` {r species_richness_rarefaction1_16S, echo=TRUE}
+TP_16S_miTags_tax_occur_min13676_t<-t(TP_16S_miTags_tax_occur_min13676)
+TP_16S_miTags_tax_occur_ss13676<-rrarefy(TP_16S_miTags_tax_occur_min13676_t, 13676)
+```
+
+The normalized table shows the following dimensions and format:
+
+```{r species_richness_rarefaction2_16S, echo=FALSE}
+dim(TP_16S_miTags_tax_occur_ss13676)
+TP_16S_miTags_tax_occur_ss13676[1:5,1:5]
+```
+
+Its content fits with the expected normalization values (13676 reads per station):
+
+``` {r species_richness_rarefaction3_16S, echo=TRUE}
+rowSums(TP_16S_miTags_tax_occur_ss13676)
+```
+
+Let's check out how many OTUs don't appear in the new table:
+
+```{r species_richness_rarefaction4_16S, echo=1:5}
+length(which(colSums(TP_16S_miTags_tax_occur_ss13676)==0)) 
+```
+
+There are 7134 OTUs that don't show any occurrence in the normalized data. Let's remove them from the table and take a look at its final dimensions:
+
+```{r species_richness_rarefaction5_16S, echo=1:3}
+TP_16S_miTags_tax_occur_ss13676_no_cero<-TP_16S_miTags_tax_occur_ss13676[,-(which(colSums(TP_16S_miTags_tax_occur_ss13676)==0))]
+dim(TP_16S_miTags_tax_occur_ss13676_no_cero)
+
+#the final dimensions of the normalized table are  50 11499.
+#2174+6074 = 8248
+```
+
+Datasets summary:
+dim(TP_16S_miTags_tax) --> 8248   13
+dim(TP_16S_miTags_tax_occur) --> 8248   10
+dim(TP_16S_miTags_tax_occur_ss13676_no_cero) -->  9 6074
+
+## 2.3) Taxonomic composition analysis
+
+#Let's add the taxonomic classification to the left OTUs by merging "TP_16S_miTags_tax_occur_ss13676_no_cero" with "TP_16S_miTags_tax".
+
+```{r merge_tables_16S, echo=FALSE}
+TP_16S_miTags_tax_occur_ss13676_no_cero_t<-t(TP_16S_miTags_tax_occur_ss13676_no_cero)
+TP_16S_miTags_ss13676_tax<-merge(TP_16S_miTags_tax_occur_ss13676_no_cero_t,TP_16S_miTags_class, by="row.names")
+
+dim(TP_16S_miTags_ss13676_tax)
+TP_16S_miTags_ss13676_tax[1:5,1:5]
+
+#fix OTU_no as new row
+rownames(TP_16S_miTags_ss13676_tax)=TP_16S_miTags_ss13676_tax$Row.names
+
+#add OTU_no as rowname
+rownames.TP_16S_miTags_ss13676_tax<-TP_16S_miTags_ss13676_tax[,1]
+TP_16S_miTags_ss13676_tax<-TP_16S_miTags_ss13676_tax[,-1]
+#colnames(TP_16S_miTags_ss13676_tax, do.NULL=F)
+
+dim(TP_16S_miTags_ss13676_tax)
+TP_16S_miTags_ss13676_tax[1:5, 1:5]
+
+#sort by OTU_no (split rowname, introduce no. into column "OTU_no" and sort)
+TP_16S_miTags_ss13676_tax["OTU_no"] <- NA
+TP_16S_miTags_ss13676_tax$OTU_no <- sapply(strsplit(rownames(TP_16S_miTags_ss13676_tax),split= "\\_"),'[',2)
+TP_16S_miTags_ss13676_tax$OTU_no <- as.numeric(as.character(TP_16S_miTags_ss13676_tax$OTU_no))
+TP_16S_miTags_ss13676_tax_sorted<-TP_16S_miTags_ss13676_tax[order(TP_16S_miTags_ss13676_tax$OTU_no, decreasing = FALSE), ]
+
+dim(TP_16S_miTags_ss13676_tax_sorted)
+TP_16S_miTags_ss13676_tax_sorted[1:5,51:53]
+```
+
+```{r select_phototrophs_16S2, echo=FALSE}
+TP_16S_miTags_bacteria <- TP_16S_miTags_ss13676_tax_sorted[which(TP_16S_miTags_ss13676_tax_sorted$class_A != "Bolidophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Chlorarachniophyta" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Cryptophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Pelagophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Rappemonad" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Cryptomonadales" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Bacillariophyta" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Dictyochophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Mamiellophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Prasinophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Eustigmatales" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Trebouxiophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Prymnesiophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Dinophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Chrysophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Chlorophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Ulvophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Raphydophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Phaeothamniophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Xanthophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Chlorodendrophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Nephroselmis" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Rhodophyta" & TP_16S_miTags_ss13676_tax_sorted$class_A != "Pavlovophyceae" & TP_16S_miTags_ss13676_tax_sorted$class_A != "other_plastids"),]
+
+TP_16S_miTags_protists <- TP_16S_miTags_ss13676_tax_sorted[which(TP_16S_miTags_ss13676_tax_sorted$class_A != "heterotrophic_bacteria" & TP_16S_miTags_ss13676_tax_sorted$class_A != "cyanobacteria"),]
+
+dim(TP_16S_miTags_protists)
+dim(TP_16S_miTags_bacteria)
+TP_16S_miTags_protists[1:5,50:53]
+TP_16S_miTags_bacteria[1:5,50:53]
+```
+
+```{r aggregate_16S_protists, echo=TRUE}
+TP_16S_miTags_class_summary_reads_per_class_protists<-aggregate(rowSums(TP_16S_miTags_protists[1:50]), list(TP_16S_miTags_protists$class_A), sum)
+# count the different groups
+
+TP_16S_miTags_class_summary_otus_per_class_protists<-aggregate(rowSums(TP_16S_miTags_protists[1:50]), list(TP_16S_miTags_protists$class_A), length)
+
+## READS PER CLASS ##
+attach(TP_16S_miTags_class_summary_reads_per_class_protists)
+TP_16S_miTags_class_summary_reads_per_class_protists_order<-TP_16S_miTags_class_summary_reads_per_class_protists[order(-x),]
+detach(TP_16S_miTags_class_summary_reads_per_class_protists)
+TP_16S_miTags_class_summary_reads_per_class_protists_order
+
+#fix column names
+row.names(TP_16S_miTags_class_summary_reads_per_class_protists_order)<-TP_16S_miTags_class_summary_reads_per_class_protists_order[,1]
+TP_16S_miTags_class_summary_reads_per_class_protists_order<-TP_16S_miTags_class_summary_reads_per_class_protists_order[c(-1)]
+colnames(TP_16S_miTags_class_summary_reads_per_class_protists_order)<-c("reads_per_class")
+
+
+## OTUs PER CLASS ##
+attach(TP_16S_miTags_class_summary_otus_per_class_protists)
+TP_16S_miTags_class_summary_otus_per_class_protists_order<-TP_16S_miTags_class_summary_otus_per_class_protists[order(-x),]
+detach(TP_16S_miTags_class_summary_otus_per_class_protists)
+TP_16S_miTags_class_summary_otus_per_class_protists_order
+
+row.names(TP_16S_miTags_class_summary_otus_per_class_protists_order)<-TP_16S_miTags_class_summary_otus_per_class_protists_order[,1]
+TP_16S_miTags_class_summary_otus_per_class_protists_order<-TP_16S_miTags_class_summary_otus_per_class_protists_order[c(-1)]
+colnames(TP_16S_miTags_class_summary_otus_per_class_protists_order)<-c("OTUs_per_class")
+```
+
+```{r aggregate_16S_bacteria, echo=TRUE}
+TP_16S_miTags_class_summary_reads_per_class_bacteria<-aggregate(rowSums(TP_16S_miTags_bacteria[1:50]), list(TP_16S_miTags_bacteria$class_A), sum)
+# count the different groups
+
+TP_16S_miTags_class_summary_otus_per_class_bacteria<-aggregate(rowSums(TP_16S_miTags_bacteria[1:50]), list(TP_16S_miTags_bacteria$class_A), length)
+
+## READS PER CLASS ##
+attach(TP_16S_miTags_class_summary_reads_per_class_bacteria)
+TP_16S_miTags_class_summary_reads_per_class_bacteria_order<-TP_16S_miTags_class_summary_reads_per_class_bacteria[order(-x),]
+detach(TP_16S_miTags_class_summary_reads_per_class_bacteria)
+TP_16S_miTags_class_summary_reads_per_class_bacteria_order
+
+#fix column names
+row.names(TP_16S_miTags_class_summary_reads_per_class_bacteria_order)<-TP_16S_miTags_class_summary_reads_per_class_bacteria_order[,1]
+TP_16S_miTags_class_summary_reads_per_class_bacteria_order<-TP_16S_miTags_class_summary_reads_per_class_bacteria_order[c(-1)]
+colnames(TP_16S_miTags_class_summary_reads_per_class_bacteria_order)<-c("reads_per_class")
+
+
+## OTUs PER CLASS ##
+attach(TP_16S_miTags_class_summary_otus_per_class_bacteria)
+TP_16S_miTags_class_summary_otus_per_class_bacteria_order<-TP_16S_miTags_class_summary_otus_per_class_bacteria[order(-x),]
+detach(TP_16S_miTags_class_summary_otus_per_class_bacteria)
+TP_16S_miTags_class_summary_otus_per_class_bacteria_order
+
+row.names(TP_16S_miTags_class_summary_otus_per_class_bacteria_order)<-TP_16S_miTags_class_summary_otus_per_class_bacteria_order[,1]
+TP_16S_miTags_class_summary_otus_per_class_bacteria_order<-TP_16S_miTags_class_summary_otus_per_class_bacteria_order[c(-1)]
+colnames(TP_16S_miTags_class_summary_otus_per_class_bacteria_order)<-c("OTUs_per_class")
+```
+
+```{r count_samples_per_group_16S_protists, echo=FALSE}
+#create a table per group and count in how many samples they occur. 
+Dinophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Dinophyceae"),]
+Dinophyceae_tb[1:5,1:5]
+Dinophyceae_tb_occur <- Dinophyceae_tb[,1:50]
+Dinophyceae_tb_occur[1:5,1:5]
+dim(Dinophyceae_tb_occur)
+
+length(Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0])
+#Dinophyceae_tb_samples <- Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0]
+#length(Dinophyceae_tb_samples[which(colSums(Dinophyceae_tb_occur) != 0)])
+
+Prasinophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Prasinophyceae"),]
+Prasinophyceae_tb_occur <- Prasinophyceae_tb[,1:50]
+length(Prasinophyceae_tb_occur[,colSums(Prasinophyceae_tb_occur) > 0])
+
+Chrysophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Chrysophyceae"),]
+Chrysophyceae_tb_occur <- Chrysophyceae_tb[,1:50]
+length(Chrysophyceae_tb_occur[,colSums(Chrysophyceae_tb_occur) > 0])
+
+Pelagophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Pelagophyceae"),]
+Pelagophyceae_tb_occur <- Pelagophyceae_tb[,1:50]
+length(Pelagophyceae_tb_occur[,colSums(Pelagophyceae_tb_occur) > 0])
+
+Dictyochophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Dictyochophyceae"),]
+Dictyochophyceae_tb_occur <- Dictyochophyceae_tb[,1:50]
+length(Dictyochophyceae_tb_occur[,colSums(Dictyochophyceae_tb_occur) > 0])
+
+Cryptomonadales_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Cryptomonadales"),]
+Cryptomonadales_tb_occur <- Cryptomonadales_tb[,1:50]
+length(Cryptomonadales_tb_occur[,colSums(Cryptomonadales_tb_occur) > 0])
+
+Bacillariophyta_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Bacillariophyta"),]
+Bacillariophyta_tb_occur <- Bacillariophyta_tb[,1:50]
+length(Bacillariophyta_tb_occur[,colSums(Bacillariophyta_tb_occur) > 0])
+
+Chlorarachniophyta_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Chlorarachniophyta"),]
+Chlorarachniophyta_tb_occur <- Chlorarachniophyta_tb[,1:50]
+length(Chlorarachniophyta_tb_occur[,colSums(Chlorarachniophyta_tb_occur) > 0])
+
+Bolidophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Bolidophyceae"),]
+Bolidophyceae_tb_occur <- Bolidophyceae_tb[,1:50]
+length(Bolidophyceae_tb_occur[,colSums(Bolidophyceae_tb_occur) > 0])
+
+Pinguiochysidales_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Pinguiochysidales"),]
+Pinguiochysidales_tb_occur <- Pinguiochysidales_tb[,1:50]
+length(Pinguiochysidales_tb_occur[,colSums(Pinguiochysidales_tb_occur) > 0])
+
+Prymnesiophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Prymnesiophyceae"),]
+Prymnesiophyceae_tb_occur <- Prymnesiophyceae_tb[,1:50]
+length(Prymnesiophyceae_tb_occur[,colSums(Prymnesiophyceae_tb_occur) > 0])
+
+Mamiellophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Mamiellophyceae"),]
+Mamiellophyceae_tb_occur <- Mamiellophyceae_tb[,1:50]
+length(Mamiellophyceae_tb_occur[,colSums(Mamiellophyceae_tb_occur) > 0])
+
+Eustigmatales_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Eustigmatales"),]
+Eustigmatales_tb_occur <- Eustigmatales_tb[,1:50]
+length(Eustigmatales_tb_occur[,colSums(Eustigmatales_tb_occur) > 0])
+
+Chlorophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Chlorophyceae"),]
+Chlorophyceae_tb_occur <- Chlorophyceae_tb[,1:50]
+length(Chlorophyceae_tb_occur[,colSums(Chlorophyceae_tb_occur) > 0])
+
+Ulvophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Ulvophyceae"),]
+Ulvophyceae_tb_occur <- Ulvophyceae_tb[,1:50]
+length(Ulvophyceae_tb_occur[,colSums(Ulvophyceae_tb_occur) > 0])
+
+Raphydophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Raphydophyceae"),]
+Raphydophyceae_tb_occur <- Raphydophyceae_tb[,1:50]
+length(Raphydophyceae_tb_occur[,colSums(Raphydophyceae_tb_occur) > 0])
+
+Trebouxiophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Trebouxiophyceae"),]
+Trebouxiophyceae_tb_occur <- Trebouxiophyceae_tb[,1:50]
+length(Trebouxiophyceae_tb_occur[,colSums(Trebouxiophyceae_tb_occur) > 0])
+
+Phaeothamniophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Phaeothamniophyceae"),]
+Phaeothamniophyceae_tb_occur <- Phaeothamniophyceae_tb[,1:50]
+length(Phaeothamniophyceae_tb_occur[,colSums(Phaeothamniophyceae_tb_occur) > 0])
+
+Xanthophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Xanthophyceae"),]
+Xanthophyceae_tb_occur <- Xanthophyceae_tb[,1:50]
+length(Xanthophyceae_tb_occur[,colSums(Xanthophyceae_tb_occur) > 0])
+
+Chlorodendrophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Chlorodendrophyceae"),]
+Chlorodendrophyceae_tb_occur <- Chlorodendrophyceae_tb[,1:50]
+length(Chlorodendrophyceae_tb_occur[,colSums(Chlorodendrophyceae_tb_occur) > 0])
+
+Nephroselmis_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Nephroselmis"),]
+Nephroselmis_tb_occur <- Nephroselmis_tb[,1:50]
+length(Nephroselmis_tb_occur[,colSums(Nephroselmis_tb_occur) > 0])
+
+Rhodophyta_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Rhodophyta"),]
+Rhodophyta_tb_occur <- Rhodophyta_tb[,1:50]
+length(Rhodophyta_tb_occur[,colSums(Rhodophyta_tb_occur) > 0])
+
+Pavlovophyceae_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Pavlovophyceae"),]
+Pavlovophyceae_tb_occur <- Pavlovophyceae_tb[,1:50]
+length(Pavlovophyceae_tb_occur[,colSums(Pavlovophyceae_tb_occur) > 0])
+
+Rappemonad_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "Rappemonad"),]
+Rappemonad_tb_occur <- Rappemonad_tb[,1:50]
+length(Rappemonad_tb_occur[,colSums(Rappemonad_tb_occur) > 0])
+
+other_plastids_tb <- TP_16S_miTags_protists[which(TP_16S_miTags_protists$class_A == "other_plastids"),]
+other_plastids_tb_occur <- other_plastids_tb[,1:50]
+length(other_plastids_tb_occur[,colSums(other_plastids_tb_occur) > 0])
+```
+
+```{r count_samples_per_group_16S_bacteria, echo=FALSE}
+#create a table per group and count in how many samples they occur. 
+heterotrophic_bacteria_tb <- TP_16S_miTags_bacteria[which(TP_16S_miTags_bacteria$class_A == "heterotrophic_bacteria"),]
+heterotrophic_bacteria_tb_occur <- heterotrophic_bacteria_tb[,1:50]
+length(heterotrophic_bacteria_tb_occur[,colSums(heterotrophic_bacteria_tb_occur) > 0])
+
+cyanob_tb <- TP_16S_miTags_bacteria[which(TP_16S_miTags_bacteria$class_A == "cyanobacteria"),]
+cyanob_tb_occur <- cyanob_tb[,1:50]
+length(cyanob_tb_occur[,colSums(cyanob_tb_occur) > 0])
+```
+
+```{r create_table_merging_#OTUs_#reads_#samples_protists, echo=FALSE}
+TP_16S_miTags_protists_OTUs_reads_samples <- merge(TP_16S_miTags_class_summary_reads_per_class_protists_order, TP_16S_miTags_class_summary_otus_per_class_protists_order, by="row.names")
+
+row.names(TP_16S_miTags_protists_OTUs_reads_samples)<-TP_16S_miTags_protists_OTUs_reads_samples[,1]
+TP_16S_miTags_protists_OTUs_reads_samples<-TP_16S_miTags_protists_OTUs_reads_samples[,-1]
+colnames(TP_16S_miTags_protists_OTUs_reads_samples)<-c("reads_per_class","OTUs_per_class")
+TP_16S_miTags_protists_OTUs_reads_samples[1:5,1:2]
+
+TP_16S_miTags_protists_OTUs_reads_samples<-TP_16S_miTags_protists_OTUs_reads_samples[order(TP_16S_miTags_protists_OTUs_reads_samples$reads_per_class, TP_16S_miTags_protists_OTUs_reads_samples$OTUs_per_class, decreasing = T), c(1,2)]
+```
+
