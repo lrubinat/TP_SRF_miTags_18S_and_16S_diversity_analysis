@@ -1404,3 +1404,71 @@ library(vegan)
 
 #mantel(TP_NR97_18S_miTags_tax_occur_min680_no_cero.bray, TP_NR97_16S_miTags_tax_occur_min18220_no_cero.bray)
 ```
+
+```{r cyanobacteria_histogram, echo=TRUE}
+cyano_tb <- TP_NR97_16S_miTags_bacteria[which(TP_NR97_16S_miTags_bacteria$class_A != "heterotrophic_bacteria"),]
+
+class_summary_reads_per_class_cyano<-aggregate(rowSums(cyano_tb[1:50]), list(cyano_tb$class_B), sum)
+# count the different groups
+class_summary_otus_per_class_cyano<-aggregate(rowSums(cyano_tb[1:50]), list(cyano_tb$class_B), length)
+
+## READS PER CLASS ##
+attach(class_summary_reads_per_class_cyano)
+class_summary_reads_per_class_cyano_order<-class_summary_reads_per_class_cyano[order(-x),]
+detach(class_summary_reads_per_class_cyano)
+class_summary_reads_per_class_cyano_order
+
+#fix column names
+row.names(class_summary_reads_per_class_cyano_order)<-class_summary_reads_per_class_cyano_order[,1]
+class_summary_reads_per_class_cyano_order<-class_summary_reads_per_class_cyano_order[c(-1)]
+colnames(class_summary_reads_per_class_cyano_order)<-c("reads_per_class")
+
+
+## OTUs PER CLASS ##
+attach(class_summary_otus_per_class_cyano)
+class_summary_otus_per_class_cyano_order<-class_summary_otus_per_class_cyano[order(-x),]
+detach(class_summary_otus_per_class_cyano)
+class_summary_otus_per_class_cyano_order
+
+row.names(class_summary_otus_per_class_cyano_order)<-class_summary_otus_per_class_cyano_order[,1]
+class_summary_otus_per_class_cyano_order<-class_summary_otus_per_class_cyano_order[c(-1)]
+colnames(class_summary_otus_per_class_cyano_order)<-c("OTUs_per_class")
+
+
+# create_table_merging_#OTUs_#reads
+cyano_OTUs_reads <- merge(class_summary_reads_per_class_cyano_order, class_summary_otus_per_class_cyano_order, by="row.names")
+
+row.names(cyano_OTUs_reads)<-cyano_OTUs_reads[,1]
+cyano_OTUs_reads<-cyano_OTUs_reads[,-1]
+colnames(cyano_OTUs_reads)<-c("reads_per_class","OTUs_per_class")
+cyano_OTUs_reads[1:3,1:2]
+
+cyano_OTUs_reads<-cyano_OTUs_reads[order(cyano_OTUs_reads$reads_per_class, cyano_OTUs_reads$OTUs_per_class, decreasing = T), c(1,2)]
+cyano_OTUs_reads
+
+#compute relative values
+cyano_OTUs_reads_rel_abund <- cyano_OTUs_reads
+
+cyano_OTUs_reads_rel_abund$reads_per_class<-(cyano_OTUs_reads_rel_abund$reads_per_class*100)/colSums(cyano_OTUs_reads)[1]
+cyano_OTUs_reads_rel_abund$OTUs_per_class<-(cyano_OTUs_reads_rel_abund$OTUs_per_class*100)/colSums(cyano_OTUs_reads)[2]
+
+colSums(cyano_OTUs_reads_rel_abund)
+rownames(cyano_OTUs_reads_rel_abund) = c("Prochlorococcus", "Synechococcus", "Other cyanobacteria")
+cyano_OTUs_reads_rel_abund
+
+cyano_OTUs_reads_rel_abund["cyano_group"]<-NA
+cyano_OTUs_reads_rel_abund$cyano_group<-c("Prochlorococcus", "Synechococcus", "Other cyanobacteria")
+
+cyano_OTUs_reads_rel_abund2<-read.table("/home/laura/Documents/TFM/home/data/TARASPINA/NR97/TP_SRF/cyano_histograms_data.txt", head=TRUE)
+cyano_OTUs_reads_rel_abund2
+
+ggplot(cyano_OTUs_reads_rel_abund2, aes(x=group, y=value, fill=data)) + 
+  geom_bar(position="dodge", stat="identity") +
+  scale_y_continuous(limits=c(-1,100), breaks=c(25,50,75,100)) +
+  scale_fill_manual(values=c("#000000", "#556670")) +
+  labs(x="", y="% \n") + 
+  theme(axis.text=element_text(size=14), axis.title=element_text(size=16)) + 
+  theme(legend.title = element_blank(), legend.position=c(0.85,0.85), legend.text=element_text(size=14)) +
+  theme(axis.title.y = element_text(size = rel(1.5), angle = 0, vjust=0.97))
+```
+
