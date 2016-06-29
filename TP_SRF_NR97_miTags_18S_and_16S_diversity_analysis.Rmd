@@ -1458,7 +1458,7 @@ cyano_OTUs_reads_rel_abund
 cyano_OTUs_reads_rel_abund["cyano_group"]<-NA
 cyano_OTUs_reads_rel_abund$cyano_group<-c("Prochlorococcus", "Synechococcus", "Other cyanobacteria")
 
-cyano_OTUs_reads_rel_abund2<-read.table("/home/laura/Documents/TFM/home/data/TARASPINA/NR97/TP_SRF/cyano_histograms_data.txt", head=TRUE)
+cyano_OTUs_reads_rel_abund2<-read.table("/home/laura/Documents/TFM/home/data/TARASPINA/NR97/TP_SRF/cyano_histograms_data2.txt", head=TRUE)
 cyano_OTUs_reads_rel_abund2
 
 ggplot(cyano_OTUs_reads_rel_abund2, aes(x=group, y=value, fill=data)) + 
