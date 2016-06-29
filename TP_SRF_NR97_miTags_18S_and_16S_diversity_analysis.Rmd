@@ -808,14 +808,8 @@ colnames(TP_NR97_16S_miTags_class_summary_otus_per_class_bacteria_order)<-c("OTU
 ```{r count_samples_per_group_16S_protists, echo=FALSE}
 #create a table per group and count in how many samples they occur. 
 Dinophyceae_tb <- TP_NR97_16S_miTags_protists[which(TP_NR97_16S_miTags_protists$class_A == "Dinophyceae"),]
-Dinophyceae_tb[1:5,1:5]
 Dinophyceae_tb_occur <- Dinophyceae_tb[,1:50]
-Dinophyceae_tb_occur[1:5,1:5]
-dim(Dinophyceae_tb_occur)
-
 length(Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0])
-#Dinophyceae_tb_samples <- Dinophyceae_tb_occur[,colSums(Dinophyceae_tb_occur) > 0]
-#length(Dinophyceae_tb_samples[which(colSums(Dinophyceae_tb_occur) != 0)])
 
 Prasinophyceae_tb <- TP_NR97_16S_miTags_protists[which(TP_NR97_16S_miTags_protists$class_A == "Prasinophyceae"),]
 Prasinophyceae_tb_occur <- Prasinophyceae_tb[,1:50]
@@ -940,7 +934,8 @@ TP_NR97_16S_miTags_protists_OTUs_reads_samples<-TP_NR97_16S_miTags_protists_OTUs
 
 #add no. of samples per class
 TP_NR97_16S_miTags_protists_OTUs_reads_samples["samples_per_class"] <- NA
-TP_NR97_16S_miTags_protists_OTUs_reads_samples$samples_per_class<-c(50,50,42,50,47,28,20,29,14,24,9,4,9,10,5)
+#CAREFUL! FIRST GROUP IS "other plastids"!
+TP_NR97_16S_miTags_protists_OTUs_reads_samples$samples_per_class<-c(50,50,47,29,46,23,21,25,15,5,7,6,1,2,1)
 
 #table without "other_plastids"
 TP_NR97_16S_miTags_protists_OTUs_reads_samples <- TP_NR97_16S_miTags_protists_OTUs_reads_samples[-1,]

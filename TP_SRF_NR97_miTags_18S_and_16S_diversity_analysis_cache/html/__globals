@@ -32,7 +32,7 @@ merge_tables_16S	[<-	$	$<-	as.character	as.numeric	dim	merge	order	rownames	rown
 select_phototrophs_16S2	!=	$	&	dim	TP_NR97_16S_miTags_ss18214_tax_sorted	which
 aggregate_16S_protists	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	TP_NR97_16S_miTags_protists	x
 aggregate_16S_bacteria	$	aggregate	attach	c	colnames<-	detach	length	list	order	row.names<-	rowSums	sum	TP_NR97_16S_miTags_bacteria	x
-count_samples_per_group_16S_protists	==	>	$	colSums	dim	length	TP_NR97_16S_miTags_protists	which
+count_samples_per_group_16S_protists	==	>	$	colSums	length	TP_NR97_16S_miTags_protists	which
 count_samples_per_group_16S_bacteria	==	>	$	colSums	length	TP_NR97_16S_miTags_bacteria	which
 create_table_merging_#OTUs_#reads_#samples_protists	[<-	$	$<-	c	colnames<-	merge	order	row.names<-	T	TP_NR97_16S_miTags_class_summary_otus_per_class_protists_order	TP_NR97_16S_miTags_class_summary_reads_per_class_protists_order
 create_table_merging_#OTUs_#reads_#samples_bacteria	[<-	$	$<-	c	colnames<-	merge	order	row.names<-	T	TP_NR97_16S_miTags_class_summary_otus_per_class_bacteria_order	TP_NR97_16S_miTags_class_summary_reads_per_class_bacteria_order
